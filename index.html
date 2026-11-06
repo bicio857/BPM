@@ -110,14 +110,21 @@ function analyze(seg, lo, hi, prior){
   const maxL = Math.min(n - 3, Math.ceil(rate * 60 / lo));
   if (maxL <= minL + 1) return null;
   const sc = new Float64Array(maxL + 2), raw = new Float64Array(maxL + 2);
-  let best = minL, bs = -Infinity;
-  for (let L = minL; L <= maxL; L++){
+  const memo = new Float64Array(4 * maxL + 8).fill(NaN);
+  const acf = L => {
+    if (L >= n - 4) return 0;
+    if (!isNaN(memo[L])) return memo[L];
     let s = 0;
     for (let i = 0; i < n - L; i++) s += on[i] * on[i + L];
-    const ac = (s / (n - L)) / (e0 / n);
+    return memo[L] = (s / (n - L)) / (e0 / n);
+  };
+  let best = minL, bs = -Infinity;
+  for (let L = minL; L <= maxL; L++){
+    // un tempo vero ripete il suo schema anche a 2, 3 e 4 battiti di distanza
+    const comb = (acf(L) + acf(2 * L) + acf(3 * L) + acf(4 * L)) / 4;
     const b = 60 * rate / L;
-    const w = prior ? Math.exp(-Math.pow(Math.log2(b / 120), 2) / 2) : 1;
-    raw[L] = ac; sc[L] = ac * w;
+    const w = prior ? Math.exp(-Math.pow(Math.log2(b / 120), 2) / 2.88) : 1;
+    raw[L] = comb; sc[L] = comb * w;
     if (sc[L] > bs){ bs = sc[L]; best = L; }
   }
   if (bs <= 0) return null;
